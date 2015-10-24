@@ -16,6 +16,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 
     func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
+        // Populate Database
+        populateDatabase()
+        
         // Fetch Main Storyboard
         let mainStoryboard = UIStoryboard(name: "Main", bundle: nil)
         
@@ -109,6 +112,30 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let saveError = error as NSError
             print("\(saveError), \(saveError.userInfo)")
         }
+    }
+    
+    private func populateDatabase() {
+        // Helpers
+        let userDefaults = NSUserDefaults.standardUserDefaults()
+        guard userDefaults.objectForKey("didPopulateDatabase") == nil else { return }
+        
+        // Create Entity
+        let entityDescription = NSEntityDescription.entityForName("Item", inManagedObjectContext: self.managedObjectContext)
+        
+        for index in 0...1000000 {
+            // Initialize Record
+            let record = NSManagedObject(entity: entityDescription!, insertIntoManagedObjectContext: self.managedObjectContext)
+            
+            // Populate Record
+            record.setValue(NSDate(), forKey: "createdAt")
+            record.setValue("Item \(index)", forKey: "name")
+        }
+        
+        // Save Changes
+        saveManagedObjectContext()
+        
+        // Update User Defaults
+        userDefaults.setBool(true, forKey: "didPopulateDatabase")
     }
 
 }
