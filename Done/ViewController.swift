@@ -8,6 +8,7 @@
 
 import UIKit
 import CoreData
+import SVProgressHUD
 
 class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
 
@@ -24,6 +25,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        // Show Progress HUD
+        SVProgressHUD.showWithStatus("Fetching Data", maskType: .Gradient)
+        
         // Initialize Fetch Request
         let fetchRequest = NSFetchRequest(entityName: "Item")
         
@@ -33,15 +37,35 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         // Initialize Asynchronous Fetch Request
         let asynchronousFetchRequest = NSAsynchronousFetchRequest(fetchRequest: fetchRequest) { (asynchronousFetchResult) -> Void in
             dispatch_async(dispatch_get_main_queue(), { () -> Void in
+                // Dismiss Progress HUD
+                SVProgressHUD.dismiss()
+                
+                // Process Asynchronous Fetch Result
                 self.processAsynchronousFetchResult(asynchronousFetchResult)
+                
+                if let asynchronousFetchProgress = asynchronousFetchResult.progress {
+                    // Remove Observer
+                    asynchronousFetchProgress.removeObserver(self, forKeyPath: "completedUnitCount")
+                }
             })
         }
         
         do {
-            // Execute Asynchronous Fetch Request
-            let asynchronousFetchResult = try managedObjectContext.executeRequest(asynchronousFetchRequest)
+            // Create Progress
+            let progress = NSProgress(totalUnitCount: 1)
             
-            print(asynchronousFetchResult)
+            // Become Current
+            progress.becomeCurrentWithPendingUnitCount(1)
+            
+            // Execute Asynchronous Fetch Request
+            let asynchronousFetchResult = try managedObjectContext.executeRequest(asynchronousFetchRequest) as! NSAsynchronousFetchResult
+            
+            if let asynchronousFetchProgress = asynchronousFetchResult.progress {
+                asynchronousFetchProgress.addObserver(self, forKeyPath: "completedUnitCount", options: NSKeyValueObservingOptions.New, context: nil)
+            }
+            
+            // Resign Current
+            progress.resignCurrent()
             
         } catch {
             let fetchError = error as NSError
@@ -141,6 +165,22 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             
             // Reload Table View
             tableView.reloadData()
+        }
+    }
+    
+    // MARK: -
+    // MARK: Key Value Observing
+    override func observeValueForKeyPath(keyPath: String?, ofObject object: AnyObject?, change: [String : AnyObject]?, context: UnsafeMutablePointer<Void>) {
+        if keyPath == "completedUnitCount" {
+            dispatch_async(dispatch_get_main_queue(), { () -> Void in
+                if let changes = change, number = changes["new"] {
+                    // Create Status
+                    let status = "Fetched \(number) Records"
+                    
+                    // Show Progress HUD
+                    SVProgressHUD.setStatus(status)
+                }
+            })
         }
     }
 
