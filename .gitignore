@@ -109,3 +109,6 @@ xcuserdata
 # We're using source-control, so this is a "feature" that we do not want!
 
 *.moved-aside
+
+# CocoaPods
+/Pods
